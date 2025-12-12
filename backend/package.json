@@ -1,0 +1,59 @@
+{
+    "name": "applicant-filtering-ddd",
+    "version": "1.0.0",
+    "description": "A DDD-structured Node.js API for managing applicants and filtering them, using MongoDB.",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "npm run build && node dist/index.js",
+        "dev": "npm run build && node dist/index.js",
+        "seed": "node src/infrastructure/db/seed/seedApplicants.ts",
+        "test": "jest --runInBand",
+        "lint": "eslint .",
+        "format": "prettier --write ."
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.0",
+        "express": "^4.22.1",
+        "express-async-errors": "^3.1.1",
+        "helmet": "^7.1.0",
+        "module-alias": "^2.2.3",
+        "mongoose": "^8.20.2",
+        "morgan": "^1.10.0",
+        "zod": "^4.1.13"
+    },
+    "devDependencies": {
+        "@babel/eslint-parser": "^7.23.3",
+        "@types/cors": "^2.8.17",
+        "@types/express": "^5.0.6",
+        "@types/mongoose": "^5.11.97",
+        "@types/node": "^25.0.0",
+        "eslint": "^9.1.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-import": "^2.29.0",
+        "jest": "^29.7.0",
+        "nodemon": "^3.1.0",
+        "prettier": "^3.2.5",
+        "supertest": "^7.0.0",
+        "ts-node": "^10.9.2",
+        "ts-node-dev": "^2.0.0",
+        "typescript": "^5.9.3"
+    },
+    "_moduleAliases": {
+        "@domain": "src/domain",
+        "@application": "src/application",
+        "@infra": "src/infrastructure",
+        "@interfaces": "src/interfaces"
+    },
+    "keywords": [
+        "node",
+        "ddd",
+        "express",
+        "mongodb",
+        "clean-architecture",
+        "api"
+    ],
+    "author": "Your Name",
+    "license": "MIT"
+}
