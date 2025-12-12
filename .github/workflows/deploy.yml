@@ -1,0 +1,183 @@
+name: Build and Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: user-journey-analytics-backend
+  IMAGE_TAG: ${{ github.sha }}
+  LATEST_TAG: latest
+  LAMBDA_FUNCTION_NAME: user-journey-analytics-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      image-uri: ${{ steps.image.outputs.image-uri }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        working-directory: ./backend
+        run: |
+          docker build -f Dockerfile.lambda -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.LATEST_TAG }}
+
+      - name: Push image to Amazon ECR
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.LATEST_TAG }}
+
+      - name: Output image URI
+        id: image
+        run: |
+          echo "image-uri=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}" >> $GITHUB_OUTPUT
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "backend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      # - name: Run linter
+      #   working-directory: ./backend
+      #   run: npm run lint
+      #   continue-on-error: true
+
+      - name: Build
+        working-directory: ./backend
+        run: npm run build
+
+      # - name: Run tests
+      #   working-directory: ./backend
+      #   run: npm run test
+      #   continue-on-error: true
+
+  deploy:
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Fetch current Lambda image URI
+        id: current-image
+        run: |
+          CURRENT_IMAGE=$(aws lambda get-function \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --query 'Configuration.Code.ImageUri' \
+            --output text)
+          echo "current-image=$CURRENT_IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Update Lambda function code to new image
+        id: deploy-new
+        run: |
+          echo "Deploying new image: ${{ needs.build-and-push.outputs.image-uri }}"
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --image-uri ${{ needs.build-and-push.outputs.image-uri }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for Lambda deployment
+        id: wait-deploy
+        run: |
+          FUNCTION_NAME="${{ env.LAMBDA_FUNCTION_NAME }}"
+          MAX_ATTEMPTS=60
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            STATUS=$(aws lambda get-function \
+              --function-name "$FUNCTION_NAME" \
+              --query 'Configuration.LastUpdateStatus' \
+              --output text)
+            
+            if [ "$STATUS" = "Successful" ]; then
+              echo "Deployment successful!"
+              exit 0
+            elif [ "$STATUS" = "Failed" ]; then
+              echo "Deployment failed!"
+              exit 1
+            fi
+            
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Waiting for deployment... (Attempt $ATTEMPT/$MAX_ATTEMPTS, Status: $STATUS)"
+            sleep 10
+          done
+
+          echo "Deployment timeout after $(($MAX_ATTEMPTS * 10)) seconds"
+          exit 1
+
+      - name: Rollback if deployment failed
+        if: failure()
+        run: |
+          echo "Rolling back to previous image: ${{ steps.current-image.outputs.current-image }}"
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --image-uri ${{ steps.current-image.outputs.current-image }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Get Lambda function URL
+        run: |
+          URL=$(aws lambda get-function-url-config \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --query 'FunctionUrl' \
+            --output text 2>/dev/null || echo "N/A")
+          echo "Lambda Function URL: $URL"
+
+      - name: Deployment notification
+        if: always()
+        run: |
+          echo "Deployment Status: ${{ job.status }}"
+          echo "Function: ${{ env.LAMBDA_FUNCTION_NAME }}"
+          echo "New Image: ${{ needs.build-and-push.outputs.image-uri }}"
+          echo "Rolled Back Image (if any): ${{ steps.current-image.outputs.current-image }}"

@@ -13,6 +13,8 @@
         "format": "prettier --write ."
     },
     "dependencies": {
+        "@vendia/serverless-express": "^4.10.4",
+        "aws-lambda": "^1.0.7",
         "cors": "^2.8.5",
         "dotenv": "^16.4.0",
         "express": "^4.22.1",
@@ -25,6 +27,7 @@
     },
     "devDependencies": {
         "@babel/eslint-parser": "^7.23.3",
+        "@types/aws-lambda": "^8.10.159",
         "@types/cors": "^2.8.17",
         "@types/express": "^5.0.6",
         "@types/mongoose": "^5.11.97",

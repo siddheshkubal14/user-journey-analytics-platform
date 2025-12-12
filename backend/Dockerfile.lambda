@@ -1,0 +1,26 @@
+# Build stage
+FROM node:20 AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build TypeScript
+RUN npm run build
+
+# AWS Lambda stage
+FROM public.ecr.aws/lambda/nodejs:20
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ${LAMBDA_TASK_ROOT}/dist
+COPY --from=builder /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
+
+# Set the CMD to your handler
+CMD ["dist/lambda-handler.handler"]
