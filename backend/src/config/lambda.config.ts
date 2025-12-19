@@ -1,28 +1,21 @@
-// Lambda-specific configuration
+import { logger } from '../shared/utils/logger.util';
+
 export const lambdaConfig = {
-    // Connection pooling
     mongoPoolSize: {
         min: 2,
         max: 10,
     },
 
-    // Timeouts (in milliseconds)
     timeouts: {
-        connection: 10000,        // 10 seconds for connection
-        serverSelection: 10000,   // 10 seconds for server selection
-        socket: 30000,            // 30 seconds for socket operations
-        queryBuffer: 30000,       // 30 seconds for query buffering
+        connection: 10000,
+        serverSelection: 10000,
+        socket: 30000,
+        queryBuffer: 30000,
     },
 
-    // Lambda-specific settings
     lambda: {
-        // Keep connection alive across invocations
         keepAlive: true,
-
-        // Reuse connections
         reuseConnections: true,
-
-        // Connection timeout
         contextCallbackWaitsForEmptyEventLoop: false,
     },
 
@@ -40,23 +33,21 @@ export const lambdaConfig = {
     },
 };
 
-// MongoDB connection URI validation for Lambda
 export const validateMongoURI = (uri: string): boolean => {
     if (!uri) {
-        console.error('MONGO_URI environment variable is not set');
+        logger.error('MongoDB URI missing');
         return false;
     }
 
-    // Check if it's a valid MongoDB URI
     if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
-        console.error('Invalid MongoDB URI format');
+        logger.error('Invalid MongoDB URI format');
         return false;
     }
 
     return true;
 };
 
-// Get Lambda-optimized connection options
+
 export const getLambdaConnectionOptions = () => {
     return {
         maxPoolSize: lambdaConfig.mongoPoolSize.max,
@@ -68,7 +59,6 @@ export const getLambdaConnectionOptions = () => {
         waitQueueTimeoutMS: lambdaConfig.timeouts.queryBuffer,
         retryWrites: lambdaConfig.retry.retryWrites,
         retryReads: lambdaConfig.retry.retryReads,
-        // Allow connection pooling across Lambda invocations
-        family: 4, // Use IPv4
+        family: 4,
     };
 };

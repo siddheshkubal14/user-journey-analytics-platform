@@ -19,4 +19,8 @@ const sessionSchema = new Schema<ISession>({
     createdAt: { type: Date, default: Date.now },
 });
 
+
+sessionSchema.index({ sessionStart: -1 });
+sessionSchema.index({ userId: 1, sessionStart: -1 });
+
 export default model<ISession>('Session', sessionSchema, 'sessions');

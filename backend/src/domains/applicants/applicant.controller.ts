@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { ApplicantService } from './applicant.service';
+import { createApplicantSchema, filterApplicantSchema } from './applicant.schema';
 import { formattedResponse } from '../../shared/utils/response.util';
 
 export class ApplicantController {
@@ -22,32 +23,36 @@ export class ApplicantController {
             }
             res.json(formattedResponse(applicant));
         } catch (err: any) {
+            (err as any).statusCode = 400;
             next(err);
         }
     }
 
     static async create(req: Request, res: Response, next: Function) {
         try {
-            const applicant = await ApplicantService.createApplicant(req.body);
+            const validated = createApplicantSchema.parse(req.body);
+            const applicant = await ApplicantService.createApplicant(validated);
             res.status(201).json(formattedResponse(applicant, 'Applicant created'));
         } catch (err: any) {
+            (err as any).statusCode = 400;
             next(err);
         }
     }
 
     static async filter(req: Request, res: Response, next: Function) {
         try {
-            const filters = req.query;
+            const filters = filterApplicantSchema.parse(req.query);
             const applicants = await ApplicantService.filterApplicants({
-                userId: filters.userId as string,
-                sessionId: filters.sessionId as string,
-                actionType: filters.actionType as string,
-                status: filters.status as string,
-                from: filters.from ? new Date(filters.from as string) : undefined,
-                to: filters.to ? new Date(filters.to as string) : undefined,
+                userId: filters.userId,
+                sessionId: filters.sessionId,
+                actionType: filters.actionType,
+                status: filters.status,
+                from: filters.from ? new Date(filters.from) : undefined,
+                to: filters.to ? new Date(filters.to) : undefined,
             });
             res.json(formattedResponse(applicants));
         } catch (err: any) {
+            (err as any).statusCode = 400;
             next(err);
         }
     }

@@ -4,9 +4,9 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IApplicant extends Document {
     userId: Types.ObjectId;
     sessionId: Types.ObjectId;
-    actionType: string; // 'purchase', 'add_to_cart', 'wishlist', etc.
-    itemId?: string; // item/product reference
-    status?: string; // 'completed', 'pending', etc.
+    actionType: string;
+    itemId?: string;
+    status?: string;
     timestamp: Date;
 }
 
@@ -18,5 +18,11 @@ const applicantSchema = new Schema<IApplicant>({
     status: { type: String, default: 'completed' },
     timestamp: { type: Date, default: Date.now },
 });
+
+// Indexes for faster lookups
+applicantSchema.index({ timestamp: -1 });
+applicantSchema.index({ actionType: 1, timestamp: -1 });
+applicantSchema.index({ userId: 1, timestamp: -1 });
+applicantSchema.index({ sessionId: 1, timestamp: -1 });
 
 export default model<IApplicant>('Applicant', applicantSchema, 'applicants');

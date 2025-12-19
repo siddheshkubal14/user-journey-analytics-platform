@@ -9,6 +9,7 @@ import serverlessExpress from '@vendia/serverless-express';
 
 // Load env variables
 dotenv.config();
+loadConfig();
 
 // Cache for serverless-express
 let cachedServer: any;

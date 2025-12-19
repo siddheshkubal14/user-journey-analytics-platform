@@ -17,4 +17,19 @@ export class UserRepository {
     static async findByEmail(email: string): Promise<IUser | null> {
         return await User.findOne({ email });
     }
+
+    static async findWithFilter(
+        filter: any,
+        skip: number,
+        limit: number
+    ): Promise<IUser[]> {
+        return await User.find(filter)
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 });
+    }
+
+    static async countWithFilter(filter: any): Promise<number> {
+        return await User.countDocuments(filter);
+    }
 }

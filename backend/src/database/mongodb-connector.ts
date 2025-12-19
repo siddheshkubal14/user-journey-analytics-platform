@@ -3,7 +3,6 @@ import { logger } from '../shared/utils/logger.util';
 
 export default async (): Promise<typeof mongoose | undefined> => {
     try {
-        // Skip if already connected
         if (mongoose.connection.readyState === 1) {
             logger.info('MongoDB already connected, reusing connection');
             return mongoose;
@@ -13,20 +12,13 @@ export default async (): Promise<typeof mongoose | undefined> => {
         logger.info(`Attempting to connect to MongoDB`);
 
         await mongoose.connect(mongoURI, {
-            // Connection pool settings
             maxPoolSize: 10,
             minPoolSize: 2,
-
-            // Timeouts (increased for Lambda cold starts)
             connectTimeoutMS: 10000,
             serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 30000,
-
-            // Retry logic
             retryWrites: true,
             retryReads: true,
-
-            // Connection string options
             maxConnecting: 2,
             waitQueueTimeoutMS: 10000,
         } as any);

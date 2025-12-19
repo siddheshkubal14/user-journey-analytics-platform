@@ -1,10 +1,20 @@
 import { SessionRepository } from './session.repository';
 import { ISession } from './session.entity';
+import { CreateSessionInput } from './session.schema';
+import { Types } from 'mongoose';
 
 export class SessionService {
-    static async createSession(data: Partial<ISession>): Promise<ISession> {
-        // Add business logic if needed
-        return await SessionRepository.create(data);
+    static async createSession(data: CreateSessionInput): Promise<ISession> {
+        const sessionStart = data.sessionStart ? new Date(data.sessionStart) : new Date();
+
+        const validatedData: Partial<ISession> = {
+            userId: new Types.ObjectId(data.userId),
+            sessionStart,
+            timeSpent: data.timeSpent || 0,
+            pagesVisited: data.pagesVisited || 0,
+        };
+
+        return await SessionRepository.create(validatedData);
     }
 
     static async getAllSessions(): Promise<ISession[]> {

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { SessionService } from './session.service';
+import { createSessionSchema, queryParamsSchema } from './session.schema';
 import { formattedResponse } from '../../shared/utils/response.util';
 
 export class SessionController {
@@ -22,6 +23,7 @@ export class SessionController {
             }
             res.json(formattedResponse(session));
         } catch (err: any) {
+            (err as any).statusCode = 400;
             next(err);
         }
     }
@@ -31,15 +33,18 @@ export class SessionController {
             const sessions = await SessionService.getSessionsByUserId(req.params.userId);
             res.json(formattedResponse(sessions));
         } catch (err: any) {
+            (err as any).statusCode = 400;
             next(err);
         }
     }
 
     static async create(req: Request, res: Response, next: Function) {
         try {
-            const session = await SessionService.createSession(req.body);
+            const validated = createSessionSchema.parse(req.body);
+            const session = await SessionService.createSession(validated);
             res.status(201).json(formattedResponse(session, 'Session created'));
         } catch (err: any) {
+            (err as any).statusCode = 400;
             next(err);
         }
     }

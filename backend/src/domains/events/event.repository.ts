@@ -6,24 +6,40 @@ export class EventRepository {
         return await event.save();
     }
 
-    static async findAll(): Promise<IEvent[]> {
-        return await Event.find({});
+    static async findAll(page: number = 1, limit: number = 50): Promise<IEvent[]> {
+        return await Event.find({})
+            .sort({ timestamp: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean() as unknown as IEvent[];
     }
 
     static async findById(id: string): Promise<IEvent | null> {
         return await Event.findById(id);
     }
 
-    static async findByUserId(userId: string): Promise<IEvent[]> {
-        return await Event.find({ userId });
+    static async findByUserId(userId: string, page: number = 1, limit: number = 50): Promise<IEvent[]> {
+        return await Event.find({ userId })
+            .sort({ timestamp: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean() as unknown as IEvent[];
     }
 
-    static async findBySessionId(sessionId: string): Promise<IEvent[]> {
-        return await Event.find({ sessionId });
+    static async findBySessionId(sessionId: string, page: number = 1, limit: number = 50): Promise<IEvent[]> {
+        return await Event.find({ sessionId })
+            .sort({ timestamp: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean() as unknown as IEvent[];
     }
 
-    static async findByType(type: string): Promise<IEvent[]> {
-        return await Event.find({ type });
+    static async findByType(type: string, page: number = 1, limit: number = 50): Promise<IEvent[]> {
+        return await Event.find({ type })
+            .sort({ timestamp: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean() as unknown as IEvent[];
     }
 
     static async filter(filters: {
@@ -41,6 +57,8 @@ export class EventRepository {
         if (filters.from) query.timestamp.$gte = filters.from;
         if (filters.to) query.timestamp.$lte = filters.to;
 
-        return await Event.find(query);
+        return await Event.find(query)
+            .sort({ timestamp: -1 })
+            .lean() as unknown as IEvent[];
     }
 }

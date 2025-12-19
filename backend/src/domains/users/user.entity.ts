@@ -12,4 +12,6 @@ const userSchema = new Schema<IUser>({
     createdAt: { type: Date, default: Date.now },
 });
 
+userSchema.index({ createdAt: -1 });
+
 export default model<IUser>('User', userSchema, 'users');

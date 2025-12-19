@@ -1,10 +1,10 @@
 
 import mongoConnector from './database/mongodb-connector';
+import { logger } from './shared/utils/logger.util';
 
 interface AuthConfig {
     enable: boolean;
-    username?: string;
-    password?: string;
+    apiKey?: string;
 }
 
 interface LoggerConfig {
@@ -24,15 +24,20 @@ interface Config {
     databases: DatabaseConfig[];
 }
 
+let cachedConfig: Config | null = null;
+
 const loadConfig = (): Config => {
+    if (cachedConfig) {
+        return cachedConfig;
+    }
+
     const env = process.env.NODE_ENV || 'development';
 
     const baseConfig: Config = {
         port: Number(process.env.PORT) || 3000,
         auth: {
-            enable: false,
-            username: process.env.USER_NAME,
-            password: process.env.PASSWORD,
+            enable: true,
+            apiKey: process.env.API_KEY,
         },
         logger: {
             piiFields: [],
@@ -46,13 +51,26 @@ const loadConfig = (): Config => {
         ]
     };
 
+    if (baseConfig.auth.enable && !baseConfig.auth.apiKey) {
+        const msg = 'Configuration error: API_KEY is required when auth.enable is true';
+        if (env === 'production') {
+            logger.error(msg);
+            throw new Error(msg);
+        } else {
+            logger.warn(msg + ' (continuing since not production)');
+        }
+    }
+
     switch (env) {
         case 'production':
-            return { ...baseConfig, port: Number(process.env.PORT) || 443 };
+            cachedConfig = { ...baseConfig, port: Number(process.env.PORT) || 443 };
+            return cachedConfig;
         case 'development':
-            return baseConfig;
+            cachedConfig = baseConfig;
+            return cachedConfig;
         default:
-            return baseConfig;
+            cachedConfig = baseConfig;
+            return cachedConfig;
     }
 };
 
