@@ -1,11 +1,11 @@
-import http from 'http';
 import dotenv from 'dotenv';
+dotenv.config();
+
+import http from 'http';
 import app from './app';
 import { logger } from './shared/utils/logger.util';
 import initDatabase from './database';
 import loadConfig from './config';
-
-dotenv.config();
 
 const config = loadConfig();
 
