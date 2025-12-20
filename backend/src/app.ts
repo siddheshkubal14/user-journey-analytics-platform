@@ -2,6 +2,7 @@ import express, { Application } from 'express';
 
 import cors from 'cors';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
 import sharedMiddleware from './shared/middleware';
 
 import userRoutes from './domains/users/user.routes';
@@ -12,17 +13,24 @@ import analyticsRoutes from './domains/analytics/analytics.routes';
 import filterRoutes from './domains/filters/filter.routes';
 import healthRoutes from './domains/health/health.routes';
 import { logger } from './shared/utils/logger.util';
+import { swaggerSpec } from './config/swagger.config';
 
 const app: Application = express();
 
 app.use(helmet());
-
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Request Logging Middleware
 app.use(sharedMiddleware.requestLogger);
+
+// API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'User Journey Analytics API'
+}));
 
 // Health check endpoints
 app.use('/', healthRoutes);

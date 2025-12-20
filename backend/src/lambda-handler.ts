@@ -6,6 +6,7 @@ import loadConfig from './config';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import serverlessExpress from '@vendia/serverless-express';
+import { exportDailyAnalytics } from './jobs/analytics-export.job';
 
 // Load env variables
 dotenv.config();
@@ -62,6 +63,29 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
     try {
         // Important: Keep Lambda process alive during async operations
         context.callbackWaitsForEmptyEventLoop = false;
+
+        const isScheduled = (event as any)?.source === 'aws.events' || (event as any)?.['detail-type'] === 'Scheduled Event';
+
+        if (isScheduled) {
+            try {
+                if (!cachedDbConnection) {
+                    await initializeDatabase();
+                }
+                const result = await exportDailyAnalytics();
+                return {
+                    statusCode: result.success ? 200 : 500,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ success: result.success, statusCode: result.success ? 200 : 500, message: result.message }),
+                };
+            } catch (err: any) {
+                logger.error('Scheduled export error', { message: err.message, stack: err.stack });
+                return {
+                    statusCode: 500,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ success: false, error: 'Scheduled export failed' }),
+                };
+            }
+        }
 
         logger.info('Lambda invoked', {
             path: event.rawPath,
