@@ -2,11 +2,13 @@ import { AnalyticsService } from '../domains/analytics/analytics.service';
 import { logger } from '../shared/utils/logger.util';
 import { URL } from 'url';
 import https from 'https';
+import AnalyticsExport from '../domains/analytics/analytics-export.entity';
 
 export interface ExportResult {
     success: boolean;
     statusCode?: number;
     message?: string;
+    savedToDb?: boolean;
 }
 
 const postJson = (targetUrl: string, body: any, headers: Record<string, string> = {}): Promise<ExportResult> => {
@@ -65,11 +67,6 @@ export const exportDailyAnalytics = async (): Promise<ExportResult> => {
     const targetUrl = process.env.EXPORT_TARGET_URL;
     const apiKey = process.env.EXPORT_TARGET_API_KEY;
 
-    if (!targetUrl) {
-        logger.warn('EXPORT_TARGET_URL not set; skipping export');
-        return { success: false, message: 'Missing EXPORT_TARGET_URL' };
-    }
-
     try {
         const [dailyKpis, conversion] = await Promise.all([
             AnalyticsService.getDailyKPIs(),
@@ -87,21 +84,54 @@ export const exportDailyAnalytics = async (): Promise<ExportResult> => {
             exportedAt: new Date().toISOString(),
         };
 
-        const headers: Record<string, string> = {};
-        if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+        // Save to MongoDB
+        logger.info('Saving daily analytics to MongoDB', { date });
+        const exportDoc = await AnalyticsExport.findOneAndUpdate(
+            { date },
+            {
+                date,
+                kpis: payload.kpis,
+                conversion: payload.conversion,
+                source: payload.source,
+                exportedAt: new Date(),
+            },
+            { upsert: true, new: true }
+        );
+        logger.info('Daily analytics saved to MongoDB', { date, id: exportDoc._id });
 
-        logger.info('Exporting daily analytics', { targetUrl, date });
-        const result = await postJson(targetUrl, payload, headers);
+        // Optionally export to external system if URL is set
+        if (targetUrl) {
+            const headers: Record<string, string> = {};
+            if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
-        if (result.success) {
-            logger.info('Daily analytics export successful', { statusCode: result.statusCode });
-        } else {
-            logger.error('Daily analytics export failed', { statusCode: result.statusCode, message: result.message });
+            logger.info('Exporting daily analytics to external system', { targetUrl, date });
+            const result = await postJson(targetUrl, payload, headers);
+
+            // Update export status
+            await AnalyticsExport.updateOne(
+                { date },
+                {
+                    externalExportStatus: {
+                        attempted: true,
+                        success: result.success,
+                        statusCode: result.statusCode,
+                        message: result.message,
+                    },
+                }
+            );
+
+            if (result.success) {
+                logger.info('Daily analytics export to external system successful', { statusCode: result.statusCode });
+                return { success: true, statusCode: result.statusCode, message: result.message, savedToDb: true };
+            } else {
+                logger.error('Daily analytics export to external system failed', { statusCode: result.statusCode, message: result.message });
+                return { success: true, statusCode: 200, message: 'Saved to DB, but external export failed', savedToDb: true };
+            }
         }
 
-        return result;
+        return { success: true, statusCode: 200, message: 'Analytics exported to MongoDB', savedToDb: true };
     } catch (err: any) {
-        logger.error('Daily analytics export exception', { message: err.message });
-        return { success: false, message: err.message };
+        logger.error('Daily analytics export exception', { message: err.message, stack: err.stack });
+        return { success: false, message: err.message, savedToDb: false };
     }
 };
