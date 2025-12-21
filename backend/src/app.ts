@@ -8,9 +8,7 @@ import sharedMiddleware from './shared/middleware';
 import userRoutes from './domains/users/user.routes';
 import sessionRoutes from './domains/sessions/session.routes';
 import eventRoutes from './domains/events/event.routes';
-import applicantRoutes from './domains/applicants/applicant.routes';
 import analyticsRoutes from './domains/analytics/analytics.routes';
-import filterRoutes from './domains/filters/filter.routes';
 import healthRoutes from './domains/health/health.routes';
 import { logger } from './shared/utils/logger.util';
 import { swaggerSpec } from './config/swagger.config';
@@ -29,11 +27,10 @@ app.use(sharedMiddleware.requestLogger);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     explorer: false,
     customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .auth-wrapper { display: none }
-      .swagger-ui .try-out__btn { display: none }
-      .swagger-ui .btn.try-out__btn { display: none }
-    `,
+            .swagger-ui .topbar { display: none }
+            .swagger-ui .try-out__btn { display: none }
+            .swagger-ui .btn.try-out__btn { display: none }
+        `,
     customSiteTitle: 'User Journey Analytics API',
     swaggerOptions: {
         supportedSubmitMethods: [],
@@ -53,8 +50,6 @@ app.use('/', healthRoutes);
 app.use('/users', sharedMiddleware.auth, userRoutes);
 app.use('/sessions', sharedMiddleware.auth, sessionRoutes);
 app.use('/events', sharedMiddleware.auth, eventRoutes);
-app.use('/applicants', sharedMiddleware.auth, applicantRoutes);
-app.use('/filters', sharedMiddleware.auth, filterRoutes);
 app.use('/analytics', sharedMiddleware.auth, analyticsRoutes);
 
 
