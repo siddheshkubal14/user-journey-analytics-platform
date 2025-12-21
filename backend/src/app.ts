@@ -27,9 +27,23 @@ app.use(sharedMiddleware.requestLogger);
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    explorer: true,
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'User Journey Analytics API'
+    explorer: false,
+    customCss: `
+      .swagger-ui .topbar { display: none }
+      .swagger-ui .auth-wrapper { display: none }
+      .swagger-ui .try-out__btn { display: none }
+      .swagger-ui .btn.try-out__btn { display: none }
+    `,
+    customSiteTitle: 'User Journey Analytics API',
+    swaggerOptions: {
+        supportedSubmitMethods: [],
+        docExpansion: 'list',
+        defaultModelsExpandDepth: -1,
+        defaultModelExpandDepth: 1,
+        displayOperationId: true,
+        operationsSorter: 'alpha',
+        tagsSorter: 'alpha'
+    }
 }));
 
 // Health check endpoints

@@ -38,7 +38,7 @@
   - All endpoints documented with methods, paths, descriptions
   - Authentication requirements specified
   - Sample curl commands with request/response examples
-  - Interactive Swagger/OpenAPI 3.0 documentation at `/api-docs`
+  - Read-only Swagger/OpenAPI 3.0 documentation at `/api-docs`
   - 20+ endpoints documented across 6 domains (Users, Events, Sessions, Analytics, Filters, Health)
   - Request/response schemas with examples
   - Security schemes documented (API Key authentication)
