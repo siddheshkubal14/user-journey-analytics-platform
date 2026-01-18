@@ -1,13 +1,11 @@
 {
-    "name": "applicant-filtering-ddd",
+    "name": "user-journey-analytics-api",
     "version": "1.0.0",
-    "description": "A DDD-structured Node.js API for managing applicants and filtering them, using MongoDB.",
-    "main": "dist/index.js",
+    "description": "Analytics platform for tracking user behavior, sessions, and events across web applications. Built with TypeScript, DDD architecture, and MongoDB.""main": "dist/index.js",
     "scripts": {
         "build": "tsc",
         "start": "npm run build && node dist/index.js",
         "dev": "npm run build && node dist/index.js",
-        "seed": "node src/infrastructure/db/seed/seedApplicants.ts",
         "export:daily": "ts-node src/jobs/run-analytics-export.ts",
         "test": "jest --runInBand",
         "lint": "eslint .",

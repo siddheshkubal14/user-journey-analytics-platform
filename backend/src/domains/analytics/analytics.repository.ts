@@ -1,5 +1,4 @@
 import Event from '../events/event.entity';
-import Applicant from '../applicants/applicant.entity';
 import Session from '../sessions/session.entity';
 import User from '../users/user.entity';
 
@@ -50,11 +49,11 @@ export class AnalyticsRepository {
             }
         ]);
 
-        // Applicants pipeline (add to cart actions)
-        const applicantsData = await Applicant.aggregate([
+        // Add to cart events pipeline
+        const addToCartData = await Event.aggregate([
             {
                 $match: {
-                    actionType: 'add_to_cart',
+                    type: 'add_to_cart',
                     timestamp: { $gte: thirtyDaysAgo, $lte: today }
                 }
             },
@@ -94,7 +93,7 @@ export class AnalyticsRepository {
             });
         });
 
-        applicantsData.forEach(item => {
+        addToCartData.forEach(item => {
             const existing = dateMap.get(item._id) || {
                 date: item._id,
                 pageVisits: 0,
@@ -171,8 +170,8 @@ export class AnalyticsRepository {
                 type: 'page_view',
                 timestamp: { $gte: thirtyDaysAgo }
             }),
-            Applicant.countDocuments({
-                actionType: 'add_to_cart',
+            Event.countDocuments({
+                type: 'add_to_cart',
                 timestamp: { $gte: thirtyDaysAgo }
             }),
             Event.countDocuments({

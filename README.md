@@ -20,6 +20,7 @@ A comprehensive, production-ready analytics platform for tracking user behavior,
 - **Scalable Design**: Auto-scaling architecture ready for 10x traffic growth
 
 ---
+
 ## Architecture Overview
 
 ### Backend Stack
@@ -39,17 +40,20 @@ A comprehensive, production-ready analytics platform for tracking user behavior,
 - **Framework**: React 18 with TypeScript
 
 ## Challenges Addressed
+
 This platform is designed to handle the following real-world challenges:
 
 ### 1. System Active Users Increased by 10 Times
 
 **Challenge**: When user base grows from 1,000 to 10,000 concurrent users, traditional server-based systems require:
+
 - Manual capacity planning and server provisioning
 - Load balancing complexity
 - Potential downtime during scaling
 - Wasted resources during low-traffic periods
 
 **Assumptions & Timeframe**:
+
 - Baseline: ~1,000 peak concurrent users over a 1-minute window, generating ~100 requests/second
 - Target: ~10,000 peak concurrent users over the same window, generating ~1,000 requests/second
 - Profile: Spiky traffic with peak-hour bursts; off-peak averages ~10–20% of peak
@@ -57,6 +61,7 @@ This platform is designed to handle the following real-world challenges:
 **Solution Implemented**:
 
 #### A. Serverless Auto-Scaling (AWS Lambda)
+
 ```
 Without Lambda (Traditional):
 - Fixed server capacity (e.g., 4 EC2 instances)
@@ -71,6 +76,7 @@ With Lambda (Serverless):
 ```
 
 #### B. MongoDB Connection Pooling for Lambda
+
 ```typescript
 // Connection pooling optimized for Lambda cold starts
 const initDatabase = async () => {
@@ -90,12 +96,14 @@ const initDatabase = async () => {
 };
 ```
 
-**Result**: 
+**Result**:
+
 - With pooling: 50ms connect time (reused)
 - Without pooling: 500ms per request (new connection)
 - At 10,000 users: Saves 4.5 seconds per request × 10,000 = 12.5 hours wasted/sec
 
 #### C. API Gateway Request Throttling & Burst
+
 ```
 API Gateway Built-in Protection:
 - Throttling and burst controls apply per account and region
@@ -104,6 +112,7 @@ API Gateway Built-in Protection:
 ```
 
 #### D. MongoDB Atlas Scalability
+
 ```
 Free Tier (Current): M0 cluster
 - 512MB storage
@@ -117,10 +126,12 @@ db.events.createIndex({ type: 1, timestamp: -1 })
 ```
 
 **Performance Impact**:
+
 - Indexes provide orders-of-magnitude improvement on large datasets
 - Actual latency depends on query shape, data distribution, and cluster tier
 
 #### E. Capacity Assumptions (Planning)
+
 ```
 Peak-hour assumptions:
 - Concurrent users: ~10,000 over a 1-minute window
@@ -131,18 +142,11 @@ Peak-hour assumptions:
 
 ---
 
-### 2. More Integration Points Added/Requested
-
-**Challenge**: System needs to:
-- Connect to external analytics platforms
-- Import user enrichment data from CRM systems
-- Export data to data warehouses
-- Send webhooks to third-party systems
-- Support multiple concurrent integrations without blocking core API
-
+### 2. More Integration Points Added
 **Solution Implemented**:
 
 #### A. Flexible Export Job Architecture
+
 Currently implements MongoDB export, but designed for extensibility:
 
 ```typescript
@@ -177,21 +181,9 @@ export const exportDailyAnalytics = async (): Promise<ExportResult> => {
 };
 ```
 
-#### B. Article Import Integration Architecture (Overview)
-Complete flow:
 
-```
-External Systems → API Gateway → Lambda → SQS Queue → MongoDB
-                                              ↓
-                          Async Processing (Decoupled)
-```
+#### B. Event Metadata for Custom Enrichment
 
-**Benefits**:
-- Non-blocking: External API delays don't affect core analytics
-- Retry logic: SQS automatically retries failed integrations
-- Scale independently: Process queue at own pace
-
-#### C. Event Metadata for Custom Enrichment
 Events support flexible metadata for integration data:
 
 ```typescript
@@ -221,35 +213,16 @@ const event = await Event.create({
 };
 ```
 
-#### D. Optional External Export (Environment)
+#### C. External Export (Environment)
+
 ```bash
 # Optional external export (generic; if set, job will POST)
 EXPORT_TARGET_URL=https://your-endpoint.example.com/ingest
 EXPORT_TARGET_API_KEY=your_token
 ```
 
-#### E. Webhook Support Pattern
-```typescript
-// Could extend export job to support webhooks
-const triggerWebhooks = async (event: IEvent) => {
-  // Fetch registered webhooks from DB
-  const webhooks = await Webhook.find({ 
-    events: { $in: [event.type, '*'] },
-    active: true 
-  });
+#### D. Integration Points Currently Available
 
-  // Send to all registered endpoints (async)
-  await Promise.allSettled(
-    webhooks.map(hook => 
-      postJson(hook.url, event, {
-        'X-Signature': generateSignature(event, hook.secret)
-      })
-    )
-  );
-};
-```
-
-#### F. Integration Points Currently Available
 ```
 Available Out-of-Box:
 1. MongoDB Analytics Export
@@ -266,25 +239,17 @@ Can be extended to Implement:
    - Decouple integrations from API
    - Auto-retry on failure
    
-4. SNS for fan-out to multiple systems
-   - One event → multiple destinations
-   - Event-driven architecture
-   
-5. Webhook system
-   - Client-registered callbacks
-   - Signature verification
-   
-6. Data warehouse connectors
-   - Batch export with compression
 ```
 
-#### G. Extension Patterns
+#### E. Extension Patterns
+
 - SQS for async processing (decouple integrations)
 - SNS for fan-out (one event → many destinations)
 - Webhooks with signature verification
 - Data warehouse batch export (compression, retries)
 
 #### H. Cost Considerations
+
 - External platforms may incur per-event or tiered pricing
 - Keep MongoDB-first export to control baseline costs
 
@@ -297,11 +262,10 @@ Can be extended to Implement:
 
 ---
 
-
-
 ### Key Architectural Decisions
 
 #### 1. **Domain-Driven Design (DDD)**
+
 The backend is organized into clear domain boundaries, each with its own controller, service, repository, and schema:
 
 - **Analytics Domain**: Aggregates KPIs, conversion rates, and top pages from raw events
@@ -314,6 +278,7 @@ The backend is organized into clear domain boundaries, each with its own control
 **Benefits**: Clear separation of concerns, easier testing, maintainable codebase, and independent scaling of domains.
 
 #### 2. **Serverless-First Architecture**
+
 - **AWS Lambda** for compute (auto-scaling, pay-per-request)
 - **API Gateway** for HTTP routing and API management
 - **@vendia/serverless-express** for seamless Express.js to Lambda adaptation
@@ -323,6 +288,7 @@ The backend is organized into clear domain boundaries, each with its own control
 **Benefits**: Zero server management, automatic scaling, cost-effective for variable traffic, and reduced operational overhead.
 
 #### 3. **Type Safety & Code Quality**
+
 - **End-to-end TypeScript** for compile-time error detection
 - **Zod schemas** for runtime request validation
 - **ESLint + TypeScript rules** for code quality enforcement
@@ -332,6 +298,7 @@ The backend is organized into clear domain boundaries, each with its own control
 **Benefits**: Fewer runtime errors, self-documenting code, better IDE support, and confident refactoring.
 
 #### 4. **Security by Default**
+
 - **API Key authentication** with Bearer token
 - **Helmet middleware** for HTTP security headers
 - **Input sanitization** on all user inputs
@@ -344,6 +311,7 @@ The backend is organized into clear domain boundaries, each with its own control
 ### Tech Stack
 
 #### Backend
+
 - **Runtime**: Node.js 20 with Express.js
 - **Language**: TypeScript 5.x
 - **Database**: MongoDB with Mongoose ODM
@@ -355,6 +323,7 @@ The backend is organized into clear domain boundaries, each with its own control
 - **Logging**: Structured JSON logging with Winston-like interface
 
 #### Frontend
+
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite for fast HMR and optimized builds
 - **HTTP Client**: Axios with request/response interceptors
@@ -364,6 +333,7 @@ The backend is organized into clear domain boundaries, each with its own control
 - **Deployment**: AWS S3 + CloudFront or Amplify Hosting
 
 #### DevOps & CI/CD
+
 - **CI/CD**: GitHub Actions workflow for automated Lambda deployment
 - **Docker**: Dockerfile.lambda for Lambda container builds
 - **IaC**: AWS Lambda, API Gateway, S3, CloudFront configured via console/IaC
@@ -371,8 +341,10 @@ The backend is organized into clear domain boundaries, each with its own control
 - **Environment Management**: Separate configs for dev, test, and production
 
 ### Live Monitoring Dashboard
+
 **Production monitoring is live via Grafana:**
-- **Dashboard**: https://siddheshkubal14.grafana.net/dashboard/snapshot/v78t3ZyoO8V0nxIAqtpFymJbUvbRJWed
+
+- **Dashboard**: <https://siddheshkubal14.grafana.net/dashboard/snapshot/v78t3ZyoO8V0nxIAqtpFymJbUvbRJWed>
 - **Metrics**: Service health, database status, memory usage, error rates
 - **Alerts**: Email notifications for critical events
 
@@ -505,14 +477,16 @@ npm run dev
 ```
 
 Access the application:
-- **Local** Frontend: http://localhost:5173
-- **Local** Backend API: http://localhost:3000
-- **Local** Health Check: http://localhost:3000/health
+
+- **Local** Frontend: <http://localhost:5173>
+- **Local** Backend API: <http://localhost:3000>
+- **Local** Health Check: <http://localhost:3000/health>
 
 **Production URLs** (after deployment):
-- Frontend: https://main.d2uiibayrd9beo.amplifyapp.com/
-- Backend API: https://9880on5vuj.execute-api.ap-south-1.amazonaws.com
-- API Docs: https://9880on5vuj.execute-api.ap-south-1.amazonaws.com/api-docs
+
+- Frontend: <https://main.d2uiibayrd9beo.amplifyapp.com/>
+- Backend API: <https://9880on5vuj.execute-api.ap-south-1.amazonaws.com>
+- API Docs: <https://9880on5vuj.execute-api.ap-south-1.amazonaws.com/api-docs>
 
 ---
 
@@ -535,8 +509,9 @@ docker-compose down
 ```
 
 Services will be available at:
-- Frontend: http://localhost:5173 (local development)
-- Backend: http://localhost:3000 (local development)
+
+- Frontend: <http://localhost:5173> (local development)
+- Backend: <http://localhost:3000> (local development)
 - MongoDB: localhost:27017 (local development)
 
 ---
@@ -666,16 +641,19 @@ Authorization: Bearer YOUR_API_KEY
 The project includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automates Lambda deployment:
 
 **Workflow Triggers**:
+
 - Push to `main` branch with backend changes
 - Pull requests to `main` branch
 
 **Deployment Steps**:
+
 1. Builds Docker image using `Dockerfile.lambda`
 2. Pushes to Amazon ECR
 3. Updates Lambda function with new image
 4. Runs health checks
 
 **Required GitHub Secrets**:
+
 ```
 AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
@@ -704,6 +682,7 @@ aws lambda update-function-code \
 ```
 
 **Lambda Configuration**:
+
 - Runtime: Container (Node.js 20)
 - Handler: `dist/lambda-handler.handler`
 - Timeout: 30 seconds
@@ -713,12 +692,14 @@ aws lambda update-function-code \
 ### Frontend Deployment (S3 + CloudFront)
 
 1. **Build the frontend**:
+
    ```bash
    cd frontend
    npm run build
    ```
 
 2. **Upload to S3**:
+
    ```bash
    aws s3 sync dist/ s3://your-bucket-name --delete
    ```
@@ -729,18 +710,18 @@ aws lambda update-function-code \
    - Add error page redirects for SPA routing
 
 4. **Invalidate cache**:
+
    ```bash
    aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
    ```
 
 **OR use AWS Amplify Hosting**:
+
 - Configure build settings in `amplify.yml`
 - Connect GitHub repository
 - Amplify auto-deploys on push to main
 
 ### API Gateway Configuration
-
-**Important**: API Gateway requires separate CORS configuration from Express:
 
 1. **Create HTTP API** in AWS API Gateway console
 2. **Add Lambda integration** pointing to your Lambda function
@@ -751,62 +732,19 @@ aws lambda update-function-code \
    - Max Age: `86400`
 4. **Deploy to stage** (e.g., `prod`, `dev`)
 5. **Update frontend** `.env` with API Gateway URL:
+
    ```
    VITE_API_BASE_URL=https://your-api-id.execute-api.ap-south-1.amazonaws.com
    ```
 
 **Test the deployment**:
+
 ```bash
 curl -H "Authorization: Bearer YOUR_API_KEY" \
      https://your-api-id.execute-api.ap-south-1.amazonaws.com/health
 ```
 
 Refer to deployment and setup notes in this README.
-
----
-
-## Known Issues
-
-### CORS Errors with API Gateway
-
-**Issue**: Frontend receives CORS errors when calling API Gateway endpoints.
-
-**Root Cause**: 
-- Express `cors()` middleware only works for direct server requests
-- API Gateway requires separate CORS configuration
-- Missing CORS headers in API Gateway responses
-
-**Solution**:
-1. Enable CORS in API Gateway console
-2. Add CORS headers to all responses:
-   ```
-   Access-Control-Allow-Origin: *
-   Access-Control-Allow-Headers: Content-Type, Authorization
-   Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
-   ```
-3. Deploy API Gateway stage after changes
-
-### Lambda Environment Variables Not Loading
-
-**Issue**: Lambda returns 500 errors because `API_KEY` is undefined.
-
-**Root Cause**: `dotenv.config()` was called after imports, causing config module to read `undefined` values.
-
-**Solution**: Already fixed - `dotenv.config()` is now called before all imports in both `index.ts` and `lambda-handler.ts`.
-
-### API Gateway 404 Errors
-
-**Issue**: Specific routes (like `/analytics/*`) return 404 in Lambda but work locally.
-
-**Possible Causes**:
-- API Gateway stage not deployed after route changes
-- Lambda integration not configured correctly
-- Base path mapping issues
-
-**Solution**:
-1. Redeploy API Gateway stage
-2. Verify Lambda function is updated with latest code
-3. Check CloudWatch Logs for Lambda execution errors
 
 ---
 
@@ -821,12 +759,12 @@ Refer to deployment and setup notes in this README.
 | **Data Export** | CSV/JSON export functionality for reports |
 | **Multi-tenancy** | Support for multiple organizations/projects |
 
-
 ### Lambda Handler Architecture
 
 The project uses a dual-entry-point architecture:
 
 **Local Development** (`src/index.ts`):
+
 ```typescript
 import dotenv from 'dotenv';
 dotenv.config(); // Load .env before imports
@@ -836,6 +774,7 @@ const server = app.listen(PORT);
 ```
 
 **Lambda Production** (`src/lambda-handler.ts`):
+
 ```typescript
 import dotenv from 'dotenv';
 dotenv.config(); // Load Lambda environment variables
@@ -855,6 +794,7 @@ export const handler: Handler = async (event, context) => {
 ```
 
 **Key Benefits**:
+
 - Single codebase for local dev and Lambda
 - Connection pooling for MongoDB (reused across invocations)
 - Proper cold start handling
@@ -892,6 +832,7 @@ Client (JSON with status code)
 ### Frontend UI Architecture
 
 **Key Pages**:
+
 1. **Dashboard** (`/`) - Overview KPIs and charts
 2. **User Search** (`/users`) - Search and list users
 3. **User Detail** (`/users/:id`) - Individual user profile
@@ -899,6 +840,7 @@ Client (JSON with status code)
 5. **Add Event** (`/add-event`) - Manual event creation for testing
 
 **Component Structure**:
+
 - **Layout Components**: Header, Layout wrapper
 - **Behavior Components**: EventTimeline, BehaviorMetrics, PageAnalytics
 - **Chart Components**: Reusable chart components for KPIs
@@ -907,6 +849,7 @@ Client (JSON with status code)
 ### Configuration Management
 
 **Centralized Config** (`src/config.ts`):
+
 - Memoized configuration loading
 - Startup validation (fails in production if critical config missing)
 - Environment-based defaults
@@ -917,7 +860,7 @@ const config = loadConfig(); // Called once at startup
 // Validates API_KEY in production
 ```
 
-## 🔮 Future Improvements
+## 🔮 Future Enhancements
 
 | Area | Enhancement |
 |------|-------------|
@@ -929,6 +872,7 @@ const config = loadConfig(); // Called once at startup
 | **Performance** | Redis caching layer for frequently accessed data |
 | **Authentication** | OAuth2/JWT support with role-based access control |
 | **Infrastructure as Code** | Terraform/CDK for complete AWS setupstateless Lambda functions
+
 - **Production Ready**: Environment-based configuration, error handling, and health checks
 
 ---
@@ -944,6 +888,7 @@ curl -X GET \
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -988,9 +933,7 @@ curl -X GET \
 ## Additional Notes
 
 - Deployment and setup guidance is included in this README.
-- Live Monitoring Dashboard: https://siddheshkubal14.grafana.net/dashboard/snapshot/v78t3ZyoO8V0nxIAqtpFymJbUvbRJWed
+- Live Monitoring Dashboard: <https://siddheshkubal14.grafana.net/dashboard/snapshot/v78t3ZyoO8V0nxIAqtpFymJbUvbRJWed>
 - Security features and validation are summarized in this README.
 
 ---
-
-
