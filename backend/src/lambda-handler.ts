@@ -61,7 +61,7 @@ const createServer = () => {
 // Lambda handler
 export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
     try {
-        // Important: Keep Lambda process alive during async operations
+        // Keeping Lambda process alive during async operations
         context.callbackWaitsForEmptyEventLoop = false;
 
         const isScheduled = (event as any)?.source === 'aws.events' || (event as any)?.['detail-type'] === 'Scheduled Event';
